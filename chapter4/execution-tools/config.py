@@ -97,6 +97,10 @@ class Config:
             return cls.KIMI_API_KEY or cls.MOONSHOT_API_KEY
         elif provider == "openrouter":
             return cls.OPENROUTER_API_KEY
+        elif provider == "ollama":
+            # Local Ollama needs no key; the OpenAI client rejects an empty
+            # one, so hand back a placeholder that keeps validation happy.
+            return "not-needed"
         return None
     
     @classmethod
@@ -174,6 +178,15 @@ class Config:
                 "api_key": api_key,
                 "base_url": "https://openrouter.ai/api/v1",
                 "model": cls.MODEL or "google/gemini-3.5-flash"
+            }
+        elif provider == "ollama":
+            # Local, keyless Ollama endpoint (OpenAI-compatible). Override the
+            # host with OLLAMA_BASE_URL and the model with MODEL / MODEL_NAME.
+            return {
+                "provider": "ollama",
+                "api_key": api_key,
+                "base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+                "model": cls.MODEL or os.getenv("MODEL_NAME", "qwen3:8b")
             }
         else:
             raise ValueError(

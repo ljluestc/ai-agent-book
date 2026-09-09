@@ -89,10 +89,14 @@ class UserMemoryAgent:
 
         # Universal OpenRouter fallback: primary provider key absent but
         # OPENROUTER_API_KEY present -> route this agent through OpenRouter.
-        if not api_key and self.provider != "openrouter" and Config.OPENROUTER_API_KEY:
+        if not api_key and self.provider not in ("openrouter", "ollama") and Config.OPENROUTER_API_KEY:
             model = openrouter_model_id(model or PROVIDER_DEFAULT_MODELS.get(self.provider))
             self.provider = "openrouter"
             api_key = Config.OPENROUTER_API_KEY
+
+        # Local Ollama needs no key; the OpenAI client just requires a non-empty one.
+        if not api_key and self.provider == "ollama":
+            api_key = "not-needed"
 
         if not api_key:
             raise ValueError(
@@ -133,8 +137,15 @@ class UserMemoryAgent:
             # Default to Gemini 3.5 Flash, but allow any of the supported models
             self.model = model or "google/gemini-3.5-flash"
             # Supported models: google/gemini-3.5-flash, openai/gpt-5, anthropic/claude-sonnet-4
+        elif self.provider == "ollama":
+            # Local, keyless Ollama endpoint (OpenAI-compatible).
+            self.client = OpenAI(
+                api_key=api_key or "not-needed",
+                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+            )
+            self.model = model or os.getenv("MODEL_NAME", "qwen3:8b")
         else:
-            raise ValueError(f"Unsupported provider: {self.provider}. Use 'dashscope'/'qwen'/'bailian', 'siliconflow', 'doubao', 'kimi', 'moonshot', or 'openrouter'")
+            raise ValueError(f"Unsupported provider: {self.provider}. Use 'dashscope'/'qwen'/'bailian', 'siliconflow', 'doubao', 'kimi', 'moonshot', 'openrouter', or 'ollama'")
         
         # Initialize memory manager
         self.memory_manager = create_memory_manager(user_id, self.config.memory_mode)

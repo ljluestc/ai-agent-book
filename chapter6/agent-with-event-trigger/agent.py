@@ -66,6 +66,11 @@ def resolve_provider_and_key(provider: Optional[str] = None):
     """
     provider = (provider or os.getenv("LLM_PROVIDER", "kimi")).lower()
     provider = {"qwen": "dashscope", "bailian": "dashscope"}.get(provider, provider)
+    # Local, keyless Ollama: no credential needed, so short-circuit the
+    # key lookup / OpenRouter fallback and hand back a placeholder key that
+    # satisfies callers' `if not api_key` gates. See chapter2/OLLAMA.md.
+    if provider == "ollama":
+        return "ollama", "not-needed"
     key_env = _PROVIDER_KEY_ENV.get(provider)
     api_key = os.getenv(key_env) if key_env else None
     if api_key:
@@ -315,8 +320,16 @@ class EventTriggeredAgent:
             # Default to Gemini 3.5 Flash, but allow any of the supported models
             self.model = model or "google/gemini-3.5-flash"
             # Supported models: google/gemini-3.5-flash, openai/gpt-5.6-luna, anthropic/claude-sonnet-4.6
+        elif self.provider == "ollama":
+            # Local, keyless Ollama endpoint (Ollama ignores the key, but the
+            # OpenAI client requires a non-empty one). See chapter2/OLLAMA.md.
+            self.client = OpenAI(
+                api_key=api_key or "not-needed",
+                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+            )
+            self.model = model or "qwen3:8b"
         else:
-            raise ValueError(f"Unsupported provider: {provider}. Use 'dashscope'/'qwen'/'bailian', 'siliconflow', 'doubao', 'kimi', 'moonshot', or 'openrouter'")
+            raise ValueError(f"Unsupported provider: {provider}. Use 'dashscope'/'qwen'/'bailian', 'siliconflow', 'doubao', 'kimi', 'moonshot', 'openrouter', or 'ollama'")
         
         # Initialize tracking
         self.tool_call_counts: Dict[str, int] = {}

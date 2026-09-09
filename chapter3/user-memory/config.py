@@ -143,6 +143,10 @@ class Config:
             return cls.DOUBAO_API_KEY
         elif provider == "openrouter":
             return cls.OPENROUTER_API_KEY
+        elif provider == "ollama":
+            # Local Ollama needs no key; return a placeholder so the OpenAI
+            # client (which rejects an empty key) is satisfied.
+            return os.getenv("OLLAMA_API_KEY", "not-needed")
         else:
             return None
     

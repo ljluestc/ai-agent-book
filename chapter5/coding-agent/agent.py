@@ -57,6 +57,13 @@ class CodingAgent:
             else:
                 self.client = openai.OpenAI(api_key=api_key)
             self.client_type = "openai"
+        elif self.provider == "ollama":
+            # Local Ollama exposes an OpenAI-compatible API and needs no key.
+            self.client = openai.OpenAI(
+                api_key=api_key or "not-needed",
+                base_url=base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
+            )
+            self.client_type = "openai"
         else:
             raise ValueError(f"Unsupported provider: {provider}")
     
