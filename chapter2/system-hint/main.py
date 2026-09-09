@@ -93,10 +93,14 @@ def get_sample_task() -> str:
 def execute_single_task(task: str, config: SystemHintConfig = None, verbose: bool = False,
                         provider: str = "kimi", model: str = None):
     """Execute a single task with the agent"""
-    api_key = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY") or os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        print("❌ Error: Please set KIMI_API_KEY environment variable")
-        print("   export KIMI_API_KEY='your-api-key-here'")
+    from agentbook.providers import PROVIDERS, canonical_provider
+    prov = canonical_provider(provider)
+    spec = PROVIDERS.get(prov)
+    api_key = (spec.api_key() if spec else "") or os.getenv("OPENROUTER_API_KEY")
+    if spec and spec.requires_key and not api_key:
+        print(f"❌ Error: provider {prov!r} needs an API key.")
+        print("   Set the provider's key or OPENROUTER_API_KEY, or run a keyless local model:")
+        print("   python main.py --mode single --provider ollama --task '...'  (needs a local Ollama)")
         print("   （如果只想离线查看状态栏效果，请运行 python main.py --mode preview）")
         return None
 
@@ -131,12 +135,15 @@ def interactive_mode():
     """Run the agent in interactive mode"""
     print_section("Interactive Mode - System-Hint Agent")
     
-    api_key = os.getenv("KIMI_API_KEY") or os.getenv("MOONSHOT_API_KEY") or os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        print("❌ Error: Please set KIMI_API_KEY environment variable")
-        print("   export KIMI_API_KEY='your-api-key-here'")
+    from agentbook.providers import PROVIDERS, canonical_provider
+    prov = canonical_provider(os.getenv("LLM_PROVIDER", "kimi"))
+    spec = PROVIDERS.get(prov)
+    api_key = (spec.api_key() if spec else "") or os.getenv("OPENROUTER_API_KEY")
+    if spec and spec.requires_key and not api_key:
+        print(f"❌ Error: provider {prov!r} needs an API key.")
+        print("   Set its key or OPENROUTER_API_KEY, or `export LLM_PROVIDER=ollama` for a keyless local model.")
         return
-    
+
     # Initialize agent with full features
     config = SystemHintConfig(
         enable_timestamps=True,
@@ -145,10 +152,10 @@ def interactive_mode():
         enable_detailed_errors=True,
         enable_system_state=True
     )
-    
+
     agent = SystemHintAgent(
         api_key=api_key,
-        provider="kimi",
+        provider=prov,
         config=config,
         verbose=False
     )

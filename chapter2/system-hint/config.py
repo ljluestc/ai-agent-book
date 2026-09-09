@@ -60,12 +60,21 @@ class AgentConfig:
     
     def validate(self) -> bool:
         """Validate the configuration"""
-        if not self.api_key:
-            raise ValueError("API key is required. Set the selected provider's key or OPENROUTER_API_KEY fallback.")
-
         self.provider = canonical_provider(self.provider)
-        if self.provider not in {"kimi", "moonshot", "dashscope"}:
-            raise ValueError(f"Unsupported provider: {self.provider}")
+        # Accept any provider registered in the shared registry — including
+        # keyless local runtimes like Ollama (requires_key=False).
+        if self.provider not in PROVIDERS:
+            supported = ", ".join(sorted(PROVIDERS))
+            raise ValueError(f"Unsupported provider: {self.provider}. Supported: {supported}")
+
+        # A key is only required for providers that need one; local Ollama
+        # (http://localhost:11434/v1) needs none.
+        if PROVIDERS[self.provider].requires_key and not self.api_key:
+            raise ValueError(
+                f"API key is required for provider {self.provider!r}. "
+                "Set the provider's key or OPENROUTER_API_KEY fallback, "
+                "or use --provider ollama for a keyless local endpoint."
+            )
         
         if self.max_iterations < 1:
             raise ValueError("max_iterations must be at least 1")

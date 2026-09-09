@@ -32,10 +32,14 @@ class Config:
     SERPER_API_KEY: str = os.getenv("SERPER_API_KEY", "")
     SERPER_BASE_URL: str = "https://google.serper.dev"
     
-    # Model Configuration
-    MODEL_NAME: str = os.getenv(
-        "MODEL_NAME", "qwen3.7-plus" if LLM_PROVIDER == "dashscope" else "kimi-k3"
-    )
+    # Model Configuration.
+    # For dashscope/kimi keep the historical defaults; for any other provider
+    # (e.g. a local ``ollama`` endpoint) leave it empty so the shared registry
+    # picks that provider's default model (Ollama → qwen3:8b) instead of a
+    # cloud model id the local runtime does not have. Override with MODEL_NAME
+    # (e.g. MODEL_NAME=qwen2.5:0.5b for a smaller local pull).
+    _DEFAULT_MODEL = {"dashscope": "qwen3.7-plus", "kimi": "kimi-k3"}.get(LLM_PROVIDER, "")
+    MODEL_NAME: str = os.getenv("MODEL_NAME", _DEFAULT_MODEL)
     MODEL_TEMPERATURE: float = float(os.getenv("MODEL_TEMPERATURE", "0.3"))
     MODEL_MAX_TOKENS: int = int(os.getenv("MODEL_MAX_TOKENS", "8192"))
     

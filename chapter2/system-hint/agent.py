@@ -127,7 +127,16 @@ class SystemHintAgent:
             )
             self.model = backend.model
         else:
-            raise ValueError(f"Unsupported provider: {provider}. Use dashscope/qwen/bailian, kimi, or openrouter")
+            # Any other registered provider (e.g. a local Ollama endpoint,
+            # deepseek, zhipu, gemini, …) resolves through the shared registry.
+            # Keyless local runtimes such as Ollama are handled here: the
+            # registry supplies a placeholder key and the http://…:11434/v1
+            # base URL, so `--provider ollama` works with no credential.
+            from agentbook.providers import resolve_backend
+
+            backend = resolve_backend(self.provider, model=model, api_key=api_key)
+            self.client = OpenAI(api_key=backend.api_key, base_url=backend.base_url)
+            self.model = backend.model
         
         # Initialize tracking
         self.tool_call_counts: Dict[str, int] = {}
